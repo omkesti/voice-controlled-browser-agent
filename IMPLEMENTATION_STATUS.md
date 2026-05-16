@@ -64,7 +64,14 @@
 - ⏳ `browser/utils.py` - Page content extraction, selectors
 
 ### 8. Text-to-Speech
-- ⏳ `voice/speaker.py` - TTS output (pyttsx3 or ElevenLabs)
+- ✅ `voice/speaker.py` - TTS output (pyttsx3 + ElevenLabs)
+- ✅ pyttsx3 backend (offline, free, cross-platform)
+- ✅ ElevenLabs backend (online, high quality, optional)
+- ✅ Automatic sentence splitting for natural pauses
+- ✅ Long text handling with max chunk length
+- ✅ Blocking playback (waits until speech completes)
+- ✅ Configurable voice, rate, and volume
+- ✅ Comprehensive logging
 
 ### 9. Memory Management
 - ⏳ `memory/context.py` - Conversation context manager
@@ -75,11 +82,11 @@
 
 ---
 
-## 📊 Progress: 50% Complete
+## 📊 Progress: 60% Complete
 
-**Completed:** 5/10 major components  
+**Completed:** 6/10 major components  
 **In Progress:** 0/10  
-**Pending:** 5/10
+**Pending:** 4/10
 
 ---
 
@@ -108,7 +115,7 @@ voice-browser-agent/
 │   ├── __init__.py             ✅ Complete
 │   ├── recorder.py             ✅ Complete
 │   ├── transcriber.py          ✅ Complete
-│   └── speaker.py              ⏳ Pending
+│   └── speaker.py              ✅ Complete
 │
 ├── agent/
 │   ├── __init__.py             ✅ Complete
@@ -146,8 +153,13 @@ voice-browser-agent/
 - ✅ `python voice/recorder.py` - Test recorder (direct)
 - ✅ `python test_transcriber.py` - Test Whisper transcriber (interactive)
 - ✅ `python test_transcriber.py <audio.wav>` - Test transcriber with existing file
-- ✅ `python test_voice_pipeline.py` - Test complete voice pipeline (record + transcribe)
+- ✅ `python test_voice_pipeline.py` - Test voice input pipeline (record + transcribe)
 - ✅ `python voice/transcriber.py` - Test transcriber (direct)
+- ✅ `python test_speaker.py` - Test TTS speaker (all tests)
+- ✅ `python test_speaker.py "text"` - Test speaker with command line text
+- ✅ `python test_speaker.py interactive` - Interactive speaker test
+- ✅ `python voice/speaker.py` - Test speaker (direct)
+- ✅ `python test_complete_voice_loop.py` - Test complete loop (record + transcribe + speak)
 
 ---
 
