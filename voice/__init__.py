@@ -4,14 +4,15 @@ Handles voice input (recording, transcription) and output (text-to-speech).
 """
 
 from .recorder import AudioRecorder, record_audio
+from .transcriber import Transcriber, transcribe_audio
 
-# Transcriber and Speaker will be implemented later
-# from .transcriber import Transcriber
+# Speaker will be implemented later
 # from .speaker import Speaker
 
 __all__ = [
     "AudioRecorder",
     "record_audio",
-    # "Transcriber",
+    "Transcriber",
+    "transcribe_audio",
     # "Speaker",
 ]

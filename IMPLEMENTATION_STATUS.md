@@ -42,11 +42,15 @@
 ## 📋 Pending Components
 
 ### 5. Whisper Transcriber
-- ⏳ `voice/transcriber.py` - Speech-to-text with Whisper
-- ⏳ Local model support (tiny, base, small, medium, large)
-- ⏳ OpenAI API mode (optional)
-- ⏳ Language detection
-- ⏳ Transcription caching
+- ✅ `voice/transcriber.py` - Speech-to-text with Whisper
+- ✅ Local model support (tiny, base, small, medium, large)
+- ✅ Singleton model loading (loads once, reuses)
+- ✅ Automatic language detection
+- ✅ Confidence scoring (avg_logprob, no-speech probability)
+- ✅ Empty/noise detection (returns None for silent audio)
+- ✅ Comprehensive error handling and logging
+- ✅ Full metadata extraction
+- ⏳ OpenAI API mode (deferred for now)
 
 ### 6. Agent Core
 - ⏳ `agent/prompts.py` - System prompt templates
@@ -71,11 +75,11 @@
 
 ---
 
-## 📊 Progress: 40% Complete
+## 📊 Progress: 50% Complete
 
-**Completed:** 4/10 major components  
+**Completed:** 5/10 major components  
 **In Progress:** 0/10  
-**Pending:** 6/10
+**Pending:** 5/10
 
 ---
 
@@ -103,7 +107,7 @@ voice-browser-agent/
 ├── voice/
 │   ├── __init__.py             ✅ Complete
 │   ├── recorder.py             ✅ Complete
-│   ├── transcriber.py          ⏳ Pending
+│   ├── transcriber.py          ✅ Complete
 │   └── speaker.py              ⏳ Pending
 │
 ├── agent/
@@ -140,6 +144,10 @@ voice-browser-agent/
 - ✅ `python utils/audio_utils.py` - Test audio utilities
 - ✅ `python test_recorder.py` - Test audio recorder (interactive)
 - ✅ `python voice/recorder.py` - Test recorder (direct)
+- ✅ `python test_transcriber.py` - Test Whisper transcriber (interactive)
+- ✅ `python test_transcriber.py <audio.wav>` - Test transcriber with existing file
+- ✅ `python test_voice_pipeline.py` - Test complete voice pipeline (record + transcribe)
+- ✅ `python voice/transcriber.py` - Test transcriber (direct)
 
 ---
 
