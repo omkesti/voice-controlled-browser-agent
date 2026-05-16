@@ -3,6 +3,11 @@ Test script to demonstrate the colored logger functionality.
 Run with: python test_logger.py
 """
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from utils import (
     log_voice_info,
     log_transcribe_info,

@@ -4,6 +4,9 @@ Run with: python test_complete_voice_loop.py
 """
 
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from voice import record_audio, transcribe_audio, speak_text
 from utils import log_header, log_system_info, log_success, log_error
 

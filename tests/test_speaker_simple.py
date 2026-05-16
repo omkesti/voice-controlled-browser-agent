@@ -4,7 +4,9 @@ Run with: python test_speaker_simple.py
 """
 
 import sys
-sys.path.insert(0, '.')
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # Import only what we need
 from voice.speaker import Speaker, speak_text, split_into_sentences
