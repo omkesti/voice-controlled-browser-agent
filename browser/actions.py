@@ -61,6 +61,7 @@ class BrowserActions:
         log_browser_info(f"Navigating to: {normalized}")
         self.page.goto(normalized)
         self.page.wait_for_load_state("load")
+        self._dismiss_common_dialogs()
 
         title = self.page.title()
         log_browser_debug(f"Page title: {title}")
@@ -116,6 +117,7 @@ class BrowserActions:
         last_error = None
         for candidate in selectors:
             try:
+                self._dismiss_common_dialogs()
                 log_browser_debug(f"Trying selector: {candidate}")
                 element = self.page.wait_for_selector(
                     candidate,
@@ -155,12 +157,15 @@ class BrowserActions:
             True if typing succeeded
         """
         selectors = build_selector(selector)
+        if "name=\"q\"" in selector or "name='q'" in selector or "name=q" in selector:
+            selectors = selectors + ["textarea[name=\"q\"]", "[name=\"q\"]"]
         if not selectors:
             raise ValueError("Selector is empty")
 
         last_error = None
         for candidate in selectors:
             try:
+                self._dismiss_common_dialogs()
                 log_browser_debug(f"Trying selector: {candidate}")
                 element = self.page.wait_for_selector(
                     candidate,
@@ -177,6 +182,10 @@ class BrowserActions:
                     pass
 
                 element.type(text, delay=delay_ms)
+
+                # Submit common search inputs with Enter when appropriate.
+                if "name=\"q\"" in candidate or "name='q'" in candidate or "name=q" in candidate:
+                    self.page.keyboard.press("Enter")
                 log_browser_info(f"Typed into: {candidate}")
                 return True
             except Exception as e:
@@ -226,6 +235,31 @@ class BrowserActions:
         self.page.screenshot(path=str(target))
         log_browser_info(f"Screenshot saved: {target}")
         return str(target)
+
+    def _dismiss_common_dialogs(self) -> None:
+        """Best-effort click for common consent/popups."""
+        candidates = [
+            "Accept all",
+            "Accept all cookies",
+            "I agree",
+            "I Agree",
+            "Accept",
+            "Agree",
+            "Got it",
+        ]
+
+        for text in candidates:
+            try:
+                element = self.page.wait_for_selector(
+                    f"text={text}",
+                    state="visible",
+                    timeout=800,
+                )
+                element.click()
+                log_browser_info(f"Dismissed dialog: {text}")
+                break
+            except Exception:
+                continue
 
 # ============================================================================
 # TESTING / DEMO

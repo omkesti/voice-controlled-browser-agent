@@ -7,6 +7,8 @@ from typing import Optional
 
 import config
 from agent.loop import AgentLoop
+from agent.dispatcher import ToolDispatcher
+from browser.actions import BrowserActions
 from browser.manager import BrowserManager
 from utils.audio_utils import cleanup_temp_files
 from utils.logger import (
@@ -45,7 +47,11 @@ def main() -> None:
 	recorder = AudioRecorder()
 	transcriber = Transcriber()
 	speaker = Speaker()
-	agent = AgentLoop()
+
+	# Share a single browser manager across actions/dispatcher/agent.
+	actions = BrowserActions(manager)
+	dispatcher = ToolDispatcher(actions)
+	agent = AgentLoop(dispatcher=dispatcher)
 
 	try:
 		manager.launch()

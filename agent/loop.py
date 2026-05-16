@@ -70,6 +70,13 @@ class AgentLoop:
                 continue
 
             if content:
+                # Fallback: some models emit tool calls as JSON in content.
+                tool_payloads = self._extract_tool_payloads(content)
+                if tool_payloads:
+                    final = self._handle_tool_payloads(tool_payloads)
+                    if final is not None:
+                        return final
+                    continue
                 self.context.append_assistant(content)
                 return content
 
@@ -145,6 +152,39 @@ class AgentLoop:
 
         return None
 
+    def _handle_tool_payloads(self, payloads: List[Dict[str, Any]]) -> Optional[str]:
+        """
+        Dispatch tool calls parsed from content JSON.
+        """
+        for payload in payloads:
+            fn_payload = payload.get("function") if isinstance(payload, dict) else None
+
+            name = (payload.get("name") or "").strip()
+            if not name and isinstance(fn_payload, dict):
+                name = (fn_payload.get("name") or "").strip()
+
+            args = payload.get("arguments") or payload.get("parameters") or {}
+            if isinstance(fn_payload, dict) and not args:
+                args = fn_payload.get("arguments") or {}
+
+            if isinstance(args, str):
+                args = self._parse_tool_args(args)
+            if not isinstance(args, dict):
+                args = {}
+
+            log_agent_info(f"Tool call (content): {name}")
+            log_agent_debug(f"Tool args: {args}")
+
+            result = self.dispatcher.dispatch(name, args)
+            log_agent_info(f"Tool result: {result}")
+
+            if name == "done":
+                return result
+
+            self.context.append_tool_result(name, result)
+
+        return None
+
     @staticmethod
     def _parse_tool_args(args_str: str) -> Dict[str, Any]:
         """
@@ -161,3 +201,38 @@ class AgentLoop:
             return parsed if isinstance(parsed, dict) else {}
         except json.JSONDecodeError:
             return {}
+
+    @staticmethod
+    def _extract_tool_payloads(content: str) -> List[Dict[str, Any]]:
+        """
+        Extract tool call payloads from assistant content JSON.
+        Supports a single JSON object or a JSON array.
+        """
+        text = (content or "").strip()
+        if not text:
+            return []
+
+        decoder = json.JSONDecoder()
+        idx = 0
+        payloads: List[Dict[str, Any]] = []
+
+        while idx < len(text):
+            ch = text[idx]
+            if ch not in "{[":
+                idx += 1
+                continue
+
+            try:
+                parsed, end = decoder.raw_decode(text, idx)
+            except json.JSONDecodeError:
+                idx += 1
+                continue
+
+            if isinstance(parsed, dict):
+                payloads.append(parsed)
+            elif isinstance(parsed, list):
+                payloads.extend([p for p in parsed if isinstance(p, dict)])
+
+            idx = end
+
+        return payloads

@@ -4,6 +4,7 @@ Manages Playwright browser lifecycle with singleton page instance.
 """
 
 from typing import Optional
+import asyncio
 from playwright.sync_api import sync_playwright, Browser, BrowserContext, Page, Playwright
 
 import config
@@ -116,6 +117,18 @@ class BrowserManager:
         log_browser_info("🌐 Launching browser...")
         
         try:
+            # Playwright sync API cannot run inside an active asyncio loop.
+            # If a loop is running (e.g., in notebooks), create a fresh one.
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    log_browser_warning(
+                        "Detected running asyncio loop; creating a new event loop for Playwright"
+                    )
+                    asyncio.set_event_loop(asyncio.new_event_loop())
+            except RuntimeError:
+                asyncio.set_event_loop(asyncio.new_event_loop())
+
             # Start Playwright
             log_browser_debug("Starting Playwright...")
             self._playwright = sync_playwright().start()

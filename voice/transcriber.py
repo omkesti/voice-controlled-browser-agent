@@ -4,6 +4,7 @@ Converts audio files to text using OpenAI's Whisper model.
 """
 
 import os
+import shutil
 from pathlib import Path
 from typing import Optional, Dict, Any
 import whisper
@@ -117,6 +118,12 @@ class Transcriber:
         # Validate file path
         if not os.path.exists(audio_path):
             log_transcribe_error(f"Audio file not found: {audio_path}")
+            return None
+
+        # Whisper relies on ffmpeg for audio decoding
+        if shutil.which("ffmpeg") is None:
+            log_transcribe_error("ffmpeg not found on PATH. Install ffmpeg to enable transcription.")
+            log_transcribe_warning("Windows: choco install ffmpeg or winget install Gyan.FFmpeg")
             return None
         
         log_transcribe_info(f"🔤 Transcribing: {Path(audio_path).name}")
