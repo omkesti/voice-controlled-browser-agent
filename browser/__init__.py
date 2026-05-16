@@ -3,14 +3,22 @@ Browser module for Voice Browser Agent.
 Handles browser lifecycle management and automation actions via Playwright.
 """
 
-from .manager import BrowserManager
-from .actions import BrowserActions
-from .utils import truncate_page_content, build_selector, normalize_url
+# Lazy imports to avoid loading all dependencies at once
+def __getattr__(name):
+    if name == "BrowserManager":
+        from .manager import BrowserManager
+        return BrowserManager
+    elif name == "create_browser":
+        from .manager import create_browser
+        return create_browser
+    # Future imports
+    # elif name == "BrowserActions":
+    #     from .actions import BrowserActions
+    #     return BrowserActions
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 __all__ = [
     "BrowserManager",
-    "BrowserActions",
-    "truncate_page_content",
-    "build_selector",
-    "normalize_url",
+    "create_browser",
+    # "BrowserActions",  # Future
 ]

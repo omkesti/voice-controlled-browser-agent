@@ -124,12 +124,19 @@ BROWSER_TIMEOUT = int(os.getenv("BROWSER_TIMEOUT", "30000"))  # Milliseconds
 VIEWPORT_WIDTH = int(os.getenv("VIEWPORT_WIDTH", "1280"))
 VIEWPORT_HEIGHT = int(os.getenv("VIEWPORT_HEIGHT", "720"))
 
+# User agent override (None = use Playwright default)
+USER_AGENT = os.getenv("USER_AGENT", None)
+
 # Page interaction settings
 DEFAULT_NAVIGATION_TIMEOUT = int(os.getenv("DEFAULT_NAVIGATION_TIMEOUT", "30000"))  # ms
 DEFAULT_ACTION_TIMEOUT = int(os.getenv("DEFAULT_ACTION_TIMEOUT", "10000"))  # ms
 
 # Page content extraction
 MAX_PAGE_CONTENT_LENGTH = int(os.getenv("MAX_PAGE_CONTENT_LENGTH", "5000"))  # Characters
+
+# Browser debugging options (optional)
+SLOW_MO = int(os.getenv("SLOW_MO", "0"))  # Milliseconds to slow down operations (0 = disabled)
+DEVTOOLS = os.getenv("DEVTOOLS", "false").lower() == "true"  # Open DevTools on launch
 
 # ============================================================================
 # LLM AGENT CONFIGURATION
