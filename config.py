@@ -67,15 +67,34 @@ WHISPER_LANGUAGE = os.getenv("WHISPER_LANGUAGE", None)
 
 # Audio recording parameters
 SAMPLE_RATE = int(os.getenv("SAMPLE_RATE", "16000"))  # Hz
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1024"))  # Frames per buffer
 CHANNELS = int(os.getenv("CHANNELS", "1"))  # Mono audio
-FORMAT = "int16"  # Audio format
+FORMAT = "int16"  # Audio format (int16 PCM)
+
+# Frame duration in milliseconds (20-30ms is optimal for speech)
+FRAME_DURATION_MS = int(os.getenv("FRAME_DURATION_MS", "30"))  # milliseconds
+
+# Calculate frames per buffer from frame duration and sample rate
+# This ensures consistent timing regardless of sample rate
+# Formula: frames = (sample_rate * duration_ms) / 1000
+CHUNK_SIZE = int((SAMPLE_RATE * FRAME_DURATION_MS) / 1000)
+
+# Allow manual override via CHUNK_SIZE env var if needed
+if os.getenv("CHUNK_SIZE"):
+    CHUNK_SIZE = int(os.getenv("CHUNK_SIZE"))
 
 # Silence detection parameters
 SILENCE_THRESHOLD = int(os.getenv("SILENCE_THRESHOLD", "500"))  # RMS energy threshold
 SILENCE_DURATION = float(os.getenv("SILENCE_DURATION", "2.0"))  # Seconds of silence to stop recording
 MIN_RECORDING_DURATION = float(os.getenv("MIN_RECORDING_DURATION", "0.5"))  # Minimum recording length in seconds
 MAX_RECORDING_DURATION = float(os.getenv("MAX_RECORDING_DURATION", "30.0"))  # Maximum recording length in seconds
+
+# Pre-roll buffer to capture early speech (in seconds)
+PRE_ROLL_DURATION = float(os.getenv("PRE_ROLL_DURATION", "0.3"))  # Capture 300ms before speech detected
+
+# Audio device selection (None = default device)
+INPUT_DEVICE_INDEX = os.getenv("INPUT_DEVICE_INDEX")
+if INPUT_DEVICE_INDEX:
+    INPUT_DEVICE_INDEX = int(INPUT_DEVICE_INDEX)
 
 # ============================================================================
 # TEXT-TO-SPEECH CONFIGURATION

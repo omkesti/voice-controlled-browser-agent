@@ -42,8 +42,21 @@ from .logger import (
     log_header,
 )
 
-# Audio utils will be implemented later
-# from .audio_utils import calculate_rms, save_audio, load_audio, cleanup_temp_files
+from .audio_utils import (
+    calculate_rms,
+    calculate_rms_simple,
+    save_wav,
+    load_wav,
+    get_wav_duration,
+    generate_temp_filename,
+    cleanup_temp_files,
+    cleanup_old_recordings,
+    bytes_to_samples,
+    samples_to_bytes,
+    get_audio_duration,
+    is_silent,
+    has_speech,
+)
 
 __all__ = [
     # Logger setup
@@ -90,9 +103,18 @@ __all__ = [
     "log_error",
     "log_separator",
     "log_header",
-    # Audio utils (to be implemented)
-    # "calculate_rms",
-    # "save_audio",
-    # "load_audio",
-    # "cleanup_temp_files",
+    # Audio utilities
+    "calculate_rms",
+    "calculate_rms_simple",
+    "save_wav",
+    "load_wav",
+    "get_wav_duration",
+    "generate_temp_filename",
+    "cleanup_temp_files",
+    "cleanup_old_recordings",
+    "bytes_to_samples",
+    "samples_to_bytes",
+    "get_audio_duration",
+    "is_silent",
+    "has_speech",
 ]
