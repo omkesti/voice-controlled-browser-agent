@@ -19,6 +19,7 @@ except ModuleNotFoundError:
     import config
 from browser.manager import BrowserManager
 from browser.utils import normalize_url, truncate_text, build_selector
+from browser.selector_cache import SelectorCache, domain_of
 from utils.logger import (
     log_browser_info,
     log_browser_debug,
@@ -43,6 +44,33 @@ class BrowserActions:
     def __init__(self, manager: Optional[BrowserManager] = None):
         self.manager = manager or BrowserManager()
         self.page = self.manager.get_page()
+        self.selector_cache = SelectorCache()
+
+    def _build_candidates(self, selector, label, extra=None):
+        """
+        Build the ordered selector candidate list for an interaction.
+
+        Tier-3 self-healing: a cached working selector for (domain, label) is
+        tried FIRST, then the LLM-provided selector's fallback chain, then any
+        action-specific extras. Returns (domain, candidates).
+        """
+        domain = domain_of(getattr(self.page, "url", "") or "")
+        candidates = []
+
+        if label:
+            cached = self.selector_cache.get(domain, label)
+            if cached:
+                candidates.append(cached)
+                log_browser_debug(f"Cache hit '{label}'@{domain}: {cached}")
+
+        for s in build_selector(selector):
+            if s not in candidates:
+                candidates.append(s)
+        for s in extra or []:
+            if s not in candidates:
+                candidates.append(s)
+
+        return domain, candidates
 
     def navigate(self, url: str) -> str:
         """
@@ -87,7 +115,34 @@ class BrowserActions:
         # Imported here to keep the browser layer importable without requests.
         from agent.web_search import run as web_search_run
 
-        return web_search_run(query)
+        answer = web_search_run(query)
+        # Show the result in the (otherwise idle) browser window so the user
+        # sees the answer, not a blank page, when a query is answered via API.
+        self._render_answer(query, answer)
+        return answer
+
+    def _render_answer(self, query: str, answer: str) -> None:
+        """Render a query/answer card into the visible browser page."""
+        import html
+
+        q = html.escape(query or "")
+        a = html.escape(answer or "")
+        try:
+            self.page.set_content(
+                f"""<!doctype html><html><head><meta charset="utf-8">
+                <title>{q}</title></head>
+                <body style="margin:0;font-family:Segoe UI,Roboto,Arial,sans-serif;
+                background:#0f172a;color:#e2e8f0;display:flex;align-items:center;
+                justify-content:center;min-height:100vh;">
+                <div style="max-width:760px;padding:48px;">
+                <div style="font-size:14px;letter-spacing:.1em;text-transform:uppercase;
+                color:#38bdf8;margin-bottom:12px;">Search</div>
+                <div style="font-size:24px;font-weight:600;margin-bottom:24px;">{q}</div>
+                <div style="font-size:32px;line-height:1.4;white-space:pre-wrap;">{a}</div>
+                </div></body></html>"""
+            )
+        except Exception as e:
+            log_browser_warning(f"Could not render answer in browser: {e}")
 
     def scrape(self) -> str:
         """
@@ -122,17 +177,19 @@ class BrowserActions:
         log_browser_debug(f"Scrape length: {len(text)} characters")
         return text
 
-    def click(self, selector: str) -> bool:
+    def click(self, selector: str, label: Optional[str] = None) -> bool:
         """
         Click an element using selector fallbacks and wait for navigation if any.
 
         Args:
             selector: CSS/text/xpath selector string
+            label: Optional short stable name for this element (e.g. "play button")
+                   used to cache/reuse the working selector across calls and runs.
 
         Returns:
             True if click succeeded
         """
-        selectors = build_selector(selector)
+        domain, selectors = self._build_candidates(selector, label)
         if not selectors:
             raise ValueError("Selector is empty")
 
@@ -156,17 +213,22 @@ class BrowserActions:
                     pass
 
                 log_browser_info(f"Clicked: {candidate}")
+                if label:
+                    self.selector_cache.put(domain, label, candidate)
                 return True
             except Exception as e:
                 last_error = e
                 log_browser_debug(f"Selector failed: {candidate} ({e})")
 
+        # Cached selector led the list and everything failed: drop the stale entry.
+        if label:
+            self.selector_cache.invalidate(domain, label)
         log_browser_error(f"Click failed for selector: {selector}")
         if last_error:
             log_browser_error(f"Last error: {last_error}")
         return False
 
-    def type_text(self, selector: str, text: str, delay_ms: int = 20) -> bool:
+    def type_text(self, selector: str, text: str, delay_ms: int = 20, label: Optional[str] = None) -> bool:
         """
         Clear a field and type text character-by-character.
 
@@ -174,13 +236,16 @@ class BrowserActions:
             selector: CSS/text/xpath selector
             text: Text to type
             delay_ms: Delay per character in milliseconds
+            label: Optional short stable name for this field (e.g. "search box")
+                   used to cache/reuse the working selector across calls and runs.
 
         Returns:
             True if typing succeeded
         """
-        selectors = build_selector(selector)
+        extra = []
         if "name=\"q\"" in selector or "name='q'" in selector or "name=q" in selector:
-            selectors = selectors + ["textarea[name=\"q\"]", "[name=\"q\"]"]
+            extra = ["textarea[name=\"q\"]", "[name=\"q\"]"]
+        domain, selectors = self._build_candidates(selector, label, extra)
         if not selectors:
             raise ValueError("Selector is empty")
 
@@ -209,11 +274,15 @@ class BrowserActions:
                 if "name=\"q\"" in candidate or "name='q'" in candidate or "name=q" in candidate:
                     self.page.keyboard.press("Enter")
                 log_browser_info(f"Typed into: {candidate}")
+                if label:
+                    self.selector_cache.put(domain, label, candidate)
                 return True
             except Exception as e:
                 last_error = e
                 log_browser_debug(f"Selector failed: {candidate} ({e})")
 
+        if label:
+            self.selector_cache.invalidate(domain, label)
         log_browser_error(f"Type failed for selector: {selector}")
         if last_error:
             log_browser_error(f"Last error: {last_error}")

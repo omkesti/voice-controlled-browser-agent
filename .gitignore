@@ -87,3 +87,4 @@ Thumbs.db
 .playwright/
 playwright-report/
 test-results/
+data/selector_cache.json

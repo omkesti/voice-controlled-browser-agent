@@ -69,7 +69,11 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                         "selector": {
                             "type": "string",
                             "description": "CSS, text, or XPath selector for the element to click.",
-                        }
+                        },
+                        "label": {
+                            "type": "string",
+                            "description": "Short stable name for this element (e.g. 'play button', 'login link'). Enables reusing the working selector on later visits to the same site.",
+                        },
                     },
                     "required": ["selector"],
                     "additionalProperties": False,
@@ -91,6 +95,10 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                         "text": {
                             "type": "string",
                             "description": "Text to type into the field.",
+                        },
+                        "label": {
+                            "type": "string",
+                            "description": "Short stable name for this field (e.g. 'search box'). Enables reusing the working selector on later visits to the same site.",
                         },
                     },
                     "required": ["selector", "text"],
