@@ -7,7 +7,6 @@ import os
 import shutil
 from pathlib import Path
 from typing import Optional, Dict, Any
-import whisper
 
 import config
 from utils.logger import (
@@ -63,11 +62,21 @@ class Transcriber:
             The model is loaded only once and cached at the class level.
             Subsequent instances reuse the same model.
         """
-        self.model_name = model_name or config.WHISPER_MODEL
         self.language = language or config.WHISPER_LANGUAGE
         self.device = device
-        
-        # Load model if not already loaded or if model name changed
+
+        # Pick provider. WHISPER_USE_API forces local off legacy behavior; the
+        # primary switch is STT_PROVIDER ("groq" cloud vs "local" offline).
+        self.provider = "local" if config.WHISPER_USE_API else config.STT_PROVIDER
+
+        if self.provider == "groq":
+            self.model_name = model_name or config.GROQ_WHISPER_MODEL
+            self._groq_client = None  # lazily created on first transcribe
+            log_transcribe_info(f"Using Groq Whisper API: {self.model_name}")
+            return
+
+        # Local Whisper path
+        self.model_name = model_name or config.WHISPER_MODEL
         if Transcriber._model is None or Transcriber._model_name != self.model_name:
             self._load_model()
         else:
@@ -76,8 +85,12 @@ class Transcriber:
     def _load_model(self):
         """Load the Whisper model (class-level singleton)."""
         log_transcribe_info(f"Loading Whisper model: {self.model_name}...")
-        
+
         try:
+            # Imported lazily so the Groq cloud path doesn't require the
+            # heavy openai-whisper package / torch to be installed.
+            import whisper
+
             # Load model
             Transcriber._model = whisper.load_model(
                 self.model_name,
@@ -119,6 +132,10 @@ class Transcriber:
         if not os.path.exists(audio_path):
             log_transcribe_error(f"Audio file not found: {audio_path}")
             return None
+
+        # Groq cloud path: upload the audio file, no local model / ffmpeg needed.
+        if self.provider == "groq":
+            return self._transcribe_groq(audio_path, **kwargs)
 
         # Whisper relies on ffmpeg for audio decoding
         if shutil.which("ffmpeg") is None:
@@ -170,6 +187,63 @@ class Transcriber:
             log_transcribe_error(f"Transcription failed: {e}")
             return None
     
+    def _get_groq_client(self):
+        """Lazily create and cache the Groq client."""
+        if self._groq_client is None:
+            from groq import Groq
+
+            self._groq_client = Groq(api_key=config.GROQ_API_KEY)
+        return self._groq_client
+
+    def _transcribe_groq(self, audio_path: str, **kwargs) -> Optional[str]:
+        """
+        Transcribe an audio file using the Groq-hosted Whisper API.
+
+        Uses response_format="verbose_json" so per-segment confidence metrics
+        (avg_logprob, no_speech_prob) remain available, matching the local path.
+        """
+        log_transcribe_info(f"🔤 Transcribing (Groq): {Path(audio_path).name}")
+        log_transcribe_debug(f"  Model: {self.model_name}")
+        log_transcribe_debug(f"  Language: {self.language or 'auto-detect'}")
+
+        try:
+            client = self._get_groq_client()
+
+            request_options = {
+                "model": self.model_name,
+                "response_format": "verbose_json",
+                **kwargs,
+            }
+            if self.language:
+                request_options["language"] = self.language
+
+            with open(audio_path, "rb") as audio_file:
+                response = client.audio.transcriptions.create(
+                    file=(Path(audio_path).name, audio_file.read()),
+                    **request_options,
+                )
+        except Exception as e:
+            log_transcribe_error(f"Groq transcription failed: {e}")
+            return None
+
+        # The Groq SDK returns an object; normalize to a dict for reuse of the
+        # existing confidence extraction logic.
+        if hasattr(response, "model_dump"):
+            result = response.model_dump()
+        elif isinstance(response, dict):
+            result = response
+        else:
+            result = {"text": getattr(response, "text", ""), "segments": []}
+
+        text = (result.get("text") or "").strip()
+        if not text:
+            log_transcribe_warning("No speech detected (empty transcription)")
+            return None
+
+        confidence_info = self._extract_confidence(result)
+        self._log_transcription_result(text, confidence_info)
+        return text
+
     def _extract_confidence(self, result: Dict[str, Any]) -> Dict[str, float]:
         """
         Extract confidence metrics from Whisper result.
@@ -274,7 +348,14 @@ class Transcriber:
         if not os.path.exists(audio_path):
             log_transcribe_error(f"Audio file not found: {audio_path}")
             return None
-        
+
+        # Groq path has no local segments object; return text-only metadata.
+        if self.provider == "groq":
+            text = self._transcribe_groq(audio_path, **kwargs)
+            if not text:
+                return None
+            return {"text": text, "confidence": {}, "language": self.language, "segments": []}
+
         try:
             # Prepare transcription options
             transcribe_options = {

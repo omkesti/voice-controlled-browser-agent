@@ -38,6 +38,29 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "function": {
+                "name": "search",
+                "description": (
+                    "Search the web and get the answer box plus top results as text, in ONE step. "
+                    "Use this to answer questions or look things up (facts, definitions, currency "
+                    "conversions, news, 'tell me about X'). Do NOT open a search engine and type into "
+                    "it — call search directly with a concise query."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Concise search query, e.g. '10000 USD to INR' or 'four-dimensional space'.",
+                        }
+                    },
+                    "required": ["query"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
                 "name": "click",
                 "description": "Click an element on the page using a CSS, text, or XPath selector.",
                 "parameters": {
@@ -124,6 +147,28 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 "parameters": {
                     "type": "object",
                     "properties": {},
+                    "required": [],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "inspect",
+                "description": (
+                    "List the visible interactive elements (buttons, inputs, links) on the "
+                    "current page with ready-to-use selectors. Call this BEFORE click or "
+                    "type_text so you use real selectors from the page instead of guessing."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "max_elements": {
+                            "type": "integer",
+                            "description": "Maximum number of elements to return (default 40).",
+                        }
+                    },
                     "required": [],
                     "additionalProperties": False,
                 },

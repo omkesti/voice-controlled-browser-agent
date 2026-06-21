@@ -43,8 +43,18 @@ class ContextManager:
         self._trim_messages()
 
     def append_tool_result(self, tool_name: str, content: str) -> None:
+        # Feed tool results back as a plain user message rather than a
+        # protocol `role: "tool"` message. The OpenAI/Groq tool protocol
+        # requires every `role: "tool"` message to carry a `tool_call_id`
+        # matching a `tool_calls` entry in a preceding assistant message.
+        # Some Groq models emit tool calls as JSON in the content (handled
+        # by AgentLoop._handle_tool_payloads), so no such id exists. Using a
+        # labeled user message keeps the loop working for both paths.
         name = (tool_name or "").strip() or "tool"
-        self._messages.append({"role": "tool", "name": name, "content": (content or "").strip()})
+        result = (content or "").strip()
+        self._messages.append(
+            {"role": "user", "content": f"Tool '{name}' result: {result}"}
+        )
         self._trim_messages()
 
     def get_messages(self) -> List[Dict[str, Any]]:

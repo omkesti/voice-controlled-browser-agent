@@ -67,6 +67,28 @@ class BrowserActions:
         log_browser_debug(f"Page title: {title}")
         return title
 
+    def search(self, query: str) -> str:
+        """
+        Answer a query via web-search APIs (currency, instant answers, Tavily).
+
+        Search engines serve CAPTCHAs to automated browsers, so this routes
+        through structured APIs instead of scraping a results page. See
+        agent.web_search for the source order. Returns text for the LLM.
+
+        Args:
+            query: The search query string.
+
+        Returns:
+            Answer text, or a "no_result" marker if nothing was found.
+        """
+        if not query or not query.strip():
+            raise ValueError("Search query is empty")
+
+        # Imported here to keep the browser layer importable without requests.
+        from agent.web_search import run as web_search_run
+
+        return web_search_run(query)
+
     def scrape(self) -> str:
         """
         Extract visible text from the page and truncate to limit.
@@ -235,6 +257,88 @@ class BrowserActions:
         self.page.screenshot(path=str(target))
         log_browser_info(f"Screenshot saved: {target}")
         return str(target)
+
+    def inspect(self, max_elements: int = 40) -> str:
+        """
+        List visible, interactive elements on the page with ready-to-use selectors.
+
+        Lets the agent pick real selectors instead of guessing. Prefers stable
+        attributes (data-testid, id, aria-label, placeholder) and falls back to
+        text= for buttons/links. Returns a compact newline-separated list.
+
+        Args:
+            max_elements: Maximum number of elements to return.
+
+        Returns:
+            Formatted list like: '- [button] "Play" -> [data-testid="play-button"]'
+        """
+        log_browser_info("Inspecting page for interactive elements...")
+
+        self._dismiss_common_dialogs()
+        try:
+            # Let SPA content settle briefly (search results, etc.).
+            self.page.wait_for_load_state("domcontentloaded")
+            self.page.wait_for_timeout(800)
+        except Exception:
+            pass
+
+        try:
+            elements = self.page.evaluate(
+                """
+                (max) => {
+                    const sel = 'a, button, input, textarea, select, [role="button"], [role="link"], [role="textbox"], [data-testid], [contenteditable="true"]';
+                    const nodes = Array.from(document.querySelectorAll(sel));
+                    const out = [];
+                    const seen = new Set();
+                    const cssEscape = (window.CSS && CSS.escape) ? CSS.escape : (s) => s.replace(/[^a-zA-Z0-9_-]/g, '\\\\$&');
+                    for (const el of nodes) {
+                        if (out.length >= max) break;
+                        const rect = el.getBoundingClientRect();
+                        if (rect.width === 0 || rect.height === 0) continue;
+                        const style = window.getComputedStyle(el);
+                        if (style.visibility === 'hidden' || style.display === 'none' || style.opacity === '0') continue;
+
+                        const tag = el.tagName.toLowerCase();
+                        const testid = el.getAttribute('data-testid');
+                        const aria = el.getAttribute('aria-label');
+                        const ph = el.getAttribute('placeholder');
+                        const id = el.id;
+                        let selector = null;
+                        if (testid) selector = `[data-testid="${testid}"]`;
+                        else if (id) selector = `#${cssEscape(id)}`;
+                        else if (ph) selector = `[placeholder="${ph}"]`;
+                        else if (aria) selector = `[aria-label="${aria}"]`;
+
+                        let text = (el.innerText || el.value || aria || ph || '').trim().replace(/\\s+/g, ' ').slice(0, 60);
+                        if (!selector) {
+                            if (text && (tag === 'button' || tag === 'a')) selector = `text=${text}`;
+                            else continue;
+                        }
+                        const key = selector + '|' + text;
+                        if (seen.has(key)) continue;
+                        seen.add(key);
+                        out.push({ tag, text, selector });
+                    }
+                    return out;
+                }
+                """,
+                max_elements,
+            )
+        except Exception as e:
+            log_browser_error(f"Inspect failed: {e}")
+            return "error: could not inspect page"
+
+        if not elements:
+            return "No interactive elements found."
+
+        lines = []
+        for el in elements:
+            text = el.get("text") or ""
+            lines.append(f'- [{el.get("tag")}] "{text}" -> {el.get("selector")}')
+
+        result = "\n".join(lines)
+        log_browser_debug(f"Inspect found {len(elements)} elements")
+        return truncate_text(result)
 
     def _dismiss_common_dialogs(self) -> None:
         """Best-effort click for common consent/popups."""

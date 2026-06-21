@@ -18,11 +18,13 @@ class ToolDispatcher:
         self.actions = actions or BrowserActions()
         self._tool_map: Dict[str, Callable[..., Any]] = {
             "navigate": self.actions.navigate,
+            "search": self.actions.search,
             "click": self.actions.click,
             "type_text": self.actions.type_text,
             "scroll": self.actions.scroll,
             "screenshot": self.actions.screenshot,
             "scrape": self.actions.scrape,
+            "inspect": self.actions.inspect,
             "done": self._done,
         }
 

@@ -6,13 +6,15 @@
 # ============================================================================
 # SPEECH-TO-TEXT (STT)
 # ============================================================================
+# Cloud STT uses the Groq Whisper API via the `groq` package (see LLM section).
+# openai-whisper is only needed for the offline/local STT path (STT_PROVIDER=local).
 openai-whisper==20231117
 pyaudio==0.2.14
 
 # ============================================================================
 # LARGE LANGUAGE MODEL (LLM)
 # ============================================================================
-groq==0.4.2
+groq>=1.4.0  # >=0.11 required for audio.transcriptions (Groq Whisper STT)
 
 # ============================================================================
 # BROWSER AUTOMATION

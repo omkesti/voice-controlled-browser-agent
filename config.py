@@ -35,11 +35,17 @@ SCREENSHOTS_DIR.mkdir(exist_ok=True)
 
 # Groq API Configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+# llama-3.3-70b-versatile is far more reliable at tool calls than 8b-instant.
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 GROQ_API_BASE = os.getenv("GROQ_API_BASE", "https://api.groq.com/openai/v1")
 
 # OpenAI API Configuration (optional, for Whisper API mode)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# Tavily API key (optional) - enables full general web search in the `search`
+# tool. Without it, search still handles currency + instant answers keyless.
+# Get a free key at https://tavily.com
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
 # Validate required API keys
 if not GROQ_API_KEY:
@@ -52,10 +58,19 @@ if not GROQ_API_KEY:
 # WHISPER (SPEECH-TO-TEXT) CONFIGURATION
 # ============================================================================
 
-# Whisper model size: tiny, base, small, medium, large
+# Speech-to-text provider: "groq" (cloud, fast + accurate) or "local" (offline Whisper)
+STT_PROVIDER = os.getenv("STT_PROVIDER", "groq").lower()
+
+# Groq-hosted Whisper model (used when STT_PROVIDER == "groq")
+#   whisper-large-v3-turbo  -> fastest, near large-v3 accuracy (recommended)
+#   whisper-large-v3        -> highest accuracy, multilingual
+#   distil-whisper-large-v3-en -> English-only, lowest latency
+GROQ_WHISPER_MODEL = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo")
+
+# Local Whisper model size: tiny, base, small, medium, large (used when STT_PROVIDER == "local")
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "base")
 
-# Use local Whisper or OpenAI API
+# Legacy flag: force local Whisper regardless of STT_PROVIDER when set to "true".
 WHISPER_USE_API = os.getenv("WHISPER_USE_API", "false").lower() == "true"
 
 # Language for transcription (None = auto-detect)
